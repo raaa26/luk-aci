@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Lacak Tersayang - Multi Device</title>
+    <title>Lacak Tersayang - Multi Device (Real-time)</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
@@ -23,8 +23,8 @@
             border-radius: 16px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.2);
             z-index: 1000;
-            width: 260px;
-            max-height: 70vh;
+            width: 280px;
+            max-height: 75vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -50,8 +50,13 @@
             border-bottom: 1px solid #eee;
             cursor: pointer;
             font-size: 13px;
+            transition: background 0.2s;
         }
         .device-item:hover { background: #f0f5ff; }
+        .device-item.stale {
+            opacity: 0.7;
+            background: #fff7f0;
+        }
         .device-color {
             width: 12px;
             height: 12px;
@@ -60,6 +65,14 @@
         }
         .device-details { flex: 1; }
         .device-details small { color: #666; display: block; }
+        .stale-badge {
+            background: #ff9800;
+            color: white;
+            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 20px;
+            margin-left: 5px;
+        }
 
         /* Tombol lokasi saya */
         .btn-my-location {
@@ -93,7 +106,7 @@
             color: white;
             padding: 12px 20px;
             border-radius: 50px;
-            font-size: 15px;
+            font-size: 14px;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -113,12 +126,17 @@
             display: inline-block;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* untuk marker stale di map (diatur lewat JS, tapi kita tambah style */
+        .stale-marker {
+            filter: grayscale(0.5);
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
 
-    <!-- Panel Daftar Device -->
     <div class="device-panel" id="devicePanel">
         <h3><i class="fas fa-mobile-alt"></i> Perangkat Aktif</h3>
         <div class="device-list" id="deviceList">
@@ -126,12 +144,10 @@
         </div>
     </div>
 
-    <!-- Tombol lokasi sendiri -->
     <button class="btn-my-location" onclick="pusatKeSaya()" title="Lokasi saya">
         <i class="fas fa-crosshairs"></i>
     </button>
 
-    <!-- Info bar -->
     <div class="info-bar" id="infoBar">
         <span id="infoText"><span class="loading-spinner"></span> Menghubungkan...</span>
     </div>
@@ -140,9 +156,9 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // ⚠️ Ganti dengan URL database kamu
+        // 🔥 GANTI DENGAN URL REALTIME DATABASE KAMU (jangan pake "---")
         const firebaseConfig = {
-            databaseURL: "https://lokaci-39db8-default-rtdb.asia-southeast1.firebasedatabase.app/"
+            databaseURL: "https://PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app"  // <-- GANTI INI
         };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
@@ -153,11 +169,12 @@
         let posisiSaya = null;
         let markerSaya = null;
         let circleAkurasi = null;
-        // Menyimpan marker untuk setiap deviceId
-        const deviceMarkers = new Map(); // deviceId -> L.marker
-        // Warna untuk device (pakai palette)
+        const deviceMarkers = new Map(); // deviceId -> { marker, lastTimestamp, isStale }
         const colorPalette = ['#EA4335','#4285F4','#FBBC04','#34A853','#FF6D01','#46BDC6','#AB47BC','#EC407A'];
-        const deviceColors = new Map(); // deviceId -> warna
+        const deviceColors = new Map();
+        
+        // Data terbaru device (dari firebase) untuk keperluan stale check
+        let latestDevicesData = {}; // deviceId -> { position, info }
 
         // Inisialisasi peta
         map = L.map('map', { zoomControl: true }).setView([-2.5, 118], 5);
@@ -167,7 +184,7 @@
             maxZoom: 19
         }).addTo(map);
 
-        // ========== Lokasi sendiri ==========
+        // ========== Lokasi saya sendiri ==========
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(
                 (pos) => {
@@ -176,10 +193,10 @@
                     if (!markerSaya) {
                         markerSaya = L.marker([latitude, longitude], {
                             icon: L.divIcon({
-                                html: `<div style="background:#555;width:18px;height:18px;border-radius:50%;border:3px solid white;"></div>`,
+                                html: `<div style="background:#555;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 0 4px black;"></div>`,
                                 iconSize: [18,18], iconAnchor: [9,9]
                             })
-                        }).addTo(map).bindPopup("📍 Saya");
+                        }).addTo(map).bindPopup("📍 Saya (posisi sekarang)");
                     } else {
                         markerSaya.setLatLng([latitude, longitude]);
                     }
@@ -188,83 +205,140 @@
                         radius: accuracy, color: '#555', fillOpacity: 0.1, weight: 1
                     }).addTo(map);
                 },
-                (err) => console.warn("Gagal dapat lokasi:", err.message),
-                { enableHighAccuracy: true }
+                (err) => console.warn("Gagal dapat lokasi sendiri:", err.message),
+                { enableHighAccuracy: true, maximumAge: 5000 }
             );
         }
 
-        // ========== Pantau semua device di room ==========
-        const devicesRef = ref(db, `rooms/${SECRET_ROOM}/devices`);
-        onValue(devicesRef, (snapshot) => {
-            const devices = snapshot.val() || {};
-            const deviceIds = Object.keys(devices);
-            
-            // Update panel daftar device
-            renderDeviceList(devices);
+        // ========== Fungsi untuk menentukan apakah lokasi stale (lebih dari 30 detik tanpa update) ==========
+        function isStale(timestamp) {
+            if (!timestamp) return true;
+            const now = Date.now();
+            const diffSeconds = (now - timestamp) / 1000;
+            return diffSeconds > 35; // 35 detik dianggap stale (lebih dari interval kirim 10 detik)
+        }
 
-            // Untuk setiap device, update marker
-            deviceIds.forEach(deviceId => {
-                const deviceData = devices[deviceId];
-                const pos = deviceData.position;
-                const info = deviceData.info || {};
-                if (pos && pos.lat !== undefined && pos.lng !== undefined) {
-                    updateDeviceMarker(deviceId, pos, info);
-                } else {
-                    // Jika tidak ada posisi (mungkin baru info saja), abaikan atau hapus marker
-                    if (deviceMarkers.has(deviceId)) {
-                        map.removeLayer(deviceMarkers.get(deviceId));
-                        deviceMarkers.delete(deviceId);
-                    }
+        // Update tampilan stale pada marker (ganti ikon jadi semi transparan / abu)
+        function updateMarkerStaleStatus(deviceId, stale) {
+            const item = deviceMarkers.get(deviceId);
+            if (!item || !item.marker) return;
+            const originalColor = deviceColors.get(deviceId) || '#4285F4';
+            // Jika stale, ubah ikon menjadi lingkaran abu2 dengan opacity
+            if (stale) {
+                const newIcon = L.divIcon({
+                    html: `<div style="background:#9e9e9e;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 6px rgba(0,0,0,0.3);opacity:0.7;"></div>`,
+                    iconSize: [22,22], iconAnchor: [11,11],
+                    className: 'stale-marker'
+                });
+                item.marker.setIcon(newIcon);
+                // Tambahkan kelas stale pada popup sedikit keterangan
+                const popupContent = item.marker.getPopup();
+                if (popupContent && popupContent._content && !popupContent._content.includes("⏰ Stale")) {
+                    item.marker.setPopupContent(popupContent._content + `<br><span style="color:#ff9800;">⚠️ Lokasi tidak update (stale)</span>`);
                 }
-            });
-
-            // Hapus marker untuk device yang tidak ada lagi di database
-            for (const [id, marker] of deviceMarkers.entries()) {
-                if (!deviceIds.includes(id)) {
-                    map.removeLayer(marker);
-                    deviceMarkers.delete(id);
-                }
+            } else {
+                // Kembalikan ikon warna asli
+                const freshIcon = L.divIcon({
+                    html: `<div style="background:${originalColor};width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.4);"></div>`,
+                    iconSize: [22,22], iconAnchor: [11,11]
+                });
+                item.marker.setIcon(freshIcon);
             }
+            item.isStale = stale;
+        }
 
-            // Update info bar dengan jumlah device
-            document.getElementById("infoText").innerHTML =
-                `${deviceIds.length} perangkat terdeteksi`;
-        });
-
+        // Render daftar device di panel (dengan indikator stale)
         function renderDeviceList(devices) {
             const listEl = document.getElementById("deviceList");
             const entries = Object.entries(devices);
             if (entries.length === 0) {
-                listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">Belum ada perangkat</div>';
+                listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">Belum ada perangkat aktif</div>';
                 return;
             }
 
-            listEl.innerHTML = entries.map(([deviceId, data]) => {
+            // Urutkan berdasarkan last update (paling baru di atas)
+            const entriesWithTime = entries.map(([id, data]) => {
+                const pos = data.position;
+                const timestamp = pos ? pos.timestamp : 0;
+                return { id, data, timestamp };
+            });
+            entriesWithTime.sort((a,b) => b.timestamp - a.timestamp);
+
+            listEl.innerHTML = entriesWithTime.map(({id, data}) => {
                 const info = data.info || {};
                 const pos = data.position;
-                const color = getDeviceColor(deviceId);
-                const lastTime = pos ? new Date(pos.timestamp).toLocaleTimeString("id-ID", { hour:'2-digit', minute:'2-digit' }) : '-';
+                const color = getDeviceColor(id);
+                const lastTime = pos ? new Date(pos.timestamp).toLocaleTimeString("id-ID", { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '-';
                 const coords = pos ? `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}` : 'Belum ada';
+                const staleNow = pos ? isStale(pos.timestamp) : true;
+                const staleClass = staleNow ? 'stale' : '';
+                const staleBadge = staleNow ? '<span class="stale-badge">⏰ stale</span>' : '';
+                // Hitung waktu relatif
+                let relativeTime = '';
+                if (pos && pos.timestamp) {
+                    const secondsAgo = Math.floor((Date.now() - pos.timestamp) / 1000);
+                    if (secondsAgo < 60) relativeTime = `${secondsAgo} detik lalu`;
+                    else if (secondsAgo < 3600) relativeTime = `${Math.floor(secondsAgo/60)} menit lalu`;
+                    else relativeTime = `${Math.floor(secondsAgo/3600)} jam lalu`;
+                } else {
+                    relativeTime = 'belum pernah';
+                }
+                
                 return `
-                    <div class="device-item" onclick="focusDevice('${deviceId}')">
+                    <div class="device-item ${staleClass}" onclick="focusDevice('${id}')">
                         <div class="device-color" style="background:${color};"></div>
                         <div class="device-details">
-                            <strong>${info.deviceId || deviceId}</strong>
-                            <small>${info.platform || '?'} · IP: ${info.ip || '?'}</small>
-                            <small>🕒 ${lastTime} · 📍 ${coords}</small>
+                            <strong>${info.deviceId || id} ${staleBadge}</strong>
+                            <small>${info.platform || '?'} · ${info.ip || 'IP tidak diketahui'}</small>
+                            <small><i class="far fa-clock"></i> ${relativeTime} (${lastTime})</small>
+                            <small>📍 ${coords}</small>
                         </div>
                     </div>
                 `;
             }).join("");
         }
 
-        window.focusDevice = function(deviceId) {
-            const marker = deviceMarkers.get(deviceId);
-            if (marker) {
-                map.setView(marker.getLatLng(), 16);
-                marker.openPopup();
+        // Update atau buat marker untuk device, lalu cek stale
+        function updateDeviceMarker(deviceId, pos, info) {
+            if (!pos || pos.lat === undefined) return;
+            const latLng = [pos.lat, pos.lng];
+            const color = getDeviceColor(deviceId);
+            const timestamp = pos.timestamp;
+            const stale = isStale(timestamp);
+            
+            if (deviceMarkers.has(deviceId)) {
+                const existing = deviceMarkers.get(deviceId);
+                const marker = existing.marker;
+                marker.setLatLng(latLng);
+                // Update popup dengan informasi fresh atau stale
+                marker.setPopupContent(popupContent(deviceId, info, pos, stale));
+                existing.lastTimestamp = timestamp;
+                updateMarkerStaleStatus(deviceId, stale);
+            } else {
+                // Marker baru
+                const icon = L.divIcon({
+                    html: `<div style="background:${color};width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.4);"></div>`,
+                    iconSize: [22,22], iconAnchor: [11,11]
+                });
+                const marker = L.marker(latLng, { icon }).addTo(map).bindPopup(popupContent(deviceId, info, pos, stale));
+                deviceMarkers.set(deviceId, { marker, lastTimestamp: timestamp, isStale: stale });
+                if (stale) updateMarkerStaleStatus(deviceId, stale);
             }
-        };
+        }
+
+        function popupContent(deviceId, info, pos, staleFlag = false) {
+            const waktu = new Date(pos.timestamp).toLocaleTimeString("id-ID", { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            const staleMsg = staleFlag ? `<br><span style="color:#ff9800;">⚠️ LOKASI TIDAK UPDATE (STALE)</span>` : '';
+            return `
+                <b>${info.deviceId || deviceId}</b><br>
+                <small>${info.userAgent ? info.userAgent.substring(0,40)+'…' : ''}</small><br>
+                <small>IP: ${info.ip || '-'}</small><br>
+                <small>Platform: ${info.platform || '-'}</small><br>
+                <small>🕒 Update terakhir: ${waktu}</small><br>
+                <small>📍 ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}</small>
+                ${staleMsg}
+            `;
+        }
 
         function getDeviceColor(deviceId) {
             if (deviceColors.has(deviceId)) return deviceColors.get(deviceId);
@@ -273,45 +347,127 @@
             return color;
         }
 
-        function updateDeviceMarker(deviceId, pos, info) {
-            const latLng = [pos.lat, pos.lng];
-            const color = getDeviceColor(deviceId);
-
-            if (deviceMarkers.has(deviceId)) {
-                const marker = deviceMarkers.get(deviceId);
-                marker.setLatLng(latLng);
-                marker.setPopupContent(popupContent(deviceId, info, pos));
-            } else {
-                const marker = L.marker(latLng, {
-                    icon: L.divIcon({
-                        html: `<div style="background:${color};width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.4);"></div>`,
-                        iconSize: [22,22], iconAnchor: [11,11]
-                    })
-                }).addTo(map).bindPopup(popupContent(deviceId, info, pos));
-                deviceMarkers.set(deviceId, marker);
+        // Fungsi refresh visual stale periodik (tanpa perlu data baru dari firebase)
+        function refreshStaleStatusAndList() {
+            // Update status stale untuk semua marker berdasarkan timestamp terakhir
+            for (const [deviceId, item] of deviceMarkers.entries()) {
+                const lastTs = item.lastTimestamp;
+                if (lastTs) {
+                    const staleNow = isStale(lastTs);
+                    if (staleNow !== item.isStale) {
+                        updateMarkerStaleStatus(deviceId, staleNow);
+                        item.isStale = staleNow;
+                        // Perbarui popup jika ada
+                        const deviceData = latestDevicesData[deviceId];
+                        if (deviceData && deviceData.position) {
+                            const marker = item.marker;
+                            const newStale = staleNow;
+                            marker.setPopupContent(popupContent(deviceId, deviceData.info || {}, deviceData.position, newStale));
+                        }
+                    }
+                }
+            }
+            // Render ulang daftar device (untuk update tampilan waktu relatif & badge stale)
+            if (Object.keys(latestDevicesData).length > 0) {
+                renderDeviceList(latestDevicesData);
             }
         }
 
-        function popupContent(deviceId, info, pos) {
-            const waktu = new Date(pos.timestamp).toLocaleTimeString("id-ID", { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-            return `
-                <b>${info.deviceId || deviceId}</b><br>
-                <small>${info.userAgent || ''}</small><br>
-                <small>IP: ${info.ip || '-'}</small><br>
-                <small>Platform: ${info.platform || '-'}</small><br>
-                <small>🕒 ${waktu}</small><br>
-                <small>📍 ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}</small>
-            `;
-        }
-
+        // ========== Firebase realtime listening ==========
+        const devicesRef = ref(db, `rooms/${SECRET_ROOM}/devices`);
+        onValue(devicesRef, (snapshot) => {
+            const devices = snapshot.val() || {};
+            latestDevicesData = devices;
+            const deviceIds = Object.keys(devices);
+            
+            // Update panel daftar device dengan data terbaru
+            renderDeviceList(devices);
+            
+            // Update marker untuk setiap device yang punya posisi
+            deviceIds.forEach(deviceId => {
+                const deviceData = devices[deviceId];
+                const pos = deviceData.position;
+                const info = deviceData.info || {};
+                if (pos && pos.lat !== undefined && pos.lng !== undefined) {
+                    updateDeviceMarker(deviceId, pos, info);
+                    // Simpan timestamp terakhir di map item
+                    if (deviceMarkers.has(deviceId)) {
+                        deviceMarkers.get(deviceId).lastTimestamp = pos.timestamp;
+                    }
+                } else {
+                    // Jika tidak ada posisi sama sekali, hapus marker jika ada
+                    if (deviceMarkers.has(deviceId)) {
+                        map.removeLayer(deviceMarkers.get(deviceId).marker);
+                        deviceMarkers.delete(deviceId);
+                    }
+                }
+            });
+            
+            // Hapus marker untuk device yang sudah tidak ada di database
+            for (const [id, item] of deviceMarkers.entries()) {
+                if (!deviceIds.includes(id)) {
+                    map.removeLayer(item.marker);
+                    deviceMarkers.delete(id);
+                    deviceColors.delete(id);
+                }
+            }
+            
+            // Update info bar: jumlah device + jumlah yang aktif (belum stale)
+            const activeCount = deviceIds.filter(id => {
+                const dev = devices[id];
+                return dev.position && !isStale(dev.position.timestamp);
+            }).length;
+            document.getElementById("infoText").innerHTML = 
+                `${deviceIds.length} perangkat terdeteksi (${activeCount} aktif update)`;
+        });
+        
+        // Jalankan pengecekan stale setiap 5 detik (update tampilan waktu & warna)
+        setInterval(() => {
+            refreshStaleStatusAndList();
+            // Update info bar juga jumlah fresh device
+            if (Object.keys(latestDevicesData).length > 0) {
+                const deviceEntries = Object.entries(latestDevicesData);
+                const activeCount = deviceEntries.filter(([id, dev]) => {
+                    return dev.position && !isStale(dev.position.timestamp);
+                }).length;
+                document.getElementById("infoText").innerHTML = 
+                    `${deviceEntries.length} perangkat terdeteksi (${activeCount} aktif update)`;
+            }
+        }, 5000);
+        
+        // Fungsi global untuk focus device dari panel
+        window.focusDevice = function(deviceId) {
+            const markerObj = deviceMarkers.get(deviceId);
+            if (markerObj && markerObj.marker) {
+                map.setView(markerObj.marker.getLatLng(), 16);
+                markerObj.marker.openPopup();
+            } else {
+                alert("Marker device tidak ditemukan atau posisi belum tersedia.");
+            }
+        };
+        
         window.pusatKeSaya = function() {
             if (posisiSaya) {
                 map.setView([posisiSaya.lat, posisiSaya.lng], 15);
                 markerSaya?.openPopup();
             } else {
-                alert("Posisi Anda belum tersedia.");
+                alert("Lokasi kamu belum tersedia. Aktifkan GPS.");
             }
         };
+        
+        // Tambahkan legenda kecil / penjelasan di panel (opsional)
+        setTimeout(() => {
+            const panel = document.querySelector('.device-panel');
+            if (panel) {
+                const legend = document.createElement('div');
+                legend.style.padding = '8px 12px';
+                legend.style.fontSize = '11px';
+                legend.style.borderTop = '1px solid #eee';
+                legend.style.background = '#f9f9f9';
+                legend.innerHTML = '<i class="fas fa-info-circle"></i> Warna abu-abu = lokasi tidak update >35 detik';
+                panel.appendChild(legend);
+            }
+        }, 1000);
     </script>
 </body>
 </html>

@@ -1,197 +1,206 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Lacak Tersayang 🗺️</title>
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-  
-  <!-- ✅ Leaflet JavaScript (sebelum script module) -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body, html { height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, sans-serif; }
-    #map { height: 100%; width: 100%; }
-
-    .info-bar {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.85);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 50px;
-      font-size: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      z-index: 1000;
-      white-space: nowrap;
-    }
-
-    .btn-my-location {
-      position: absolute;
-      bottom: 90px;
-      right: 20px;
-      background: white;
-      border: none;
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
-      cursor: pointer;
-      font-size: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #4285F4;
-      z-index: 1000;
-      transition: transform 0.2s;
-    }
-    .btn-my-location:active { transform: scale(0.92); }
-
-    .loading-spinner {
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid #4285F4;
-      border-radius: 50%;
-      width: 18px;
-      height: 18px;
-      animation: spin 0.8s linear infinite;
-      display: inline-block;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bagikan Lokasi</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 40px 30px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .icon { font-size: 64px; margin-bottom: 16px; color: #764ba2; }
+        h1 { margin-bottom: 10px; font-weight: 600; color: #2d2d2d; }
+        .btn {
+            background: #764ba2;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 500;
+            background: #f3f4f6;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .device-info {
+            margin-top: 16px;
+            font-size: 13px;
+            color: #555;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: left;
+        }
+        .pulse {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+            margin-right: 6px;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(76,175,80,0); }
+            100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 </head>
 <body>
+    <div class="card">
+        <div class="icon">📍</div>
+        <h1>Bagikan Lokasi</h1>
+        <p style="color: #666;">Lokasi dikirim setiap 10 detik</p>
+        <div class="device-info" id="deviceInfo">
+            <i class="fas fa-mobile-alt"></i> <span id="deviceIdDisplay">...</span>
+            <br><small id="ipDisplay">Mengambil IP...</small>
+        </div>
+        <button class="btn" id="btnMulai" onclick="mulaiBagikan()">
+            <i class="fas fa-play"></i> Mulai Berbagi
+        </button>
+        <div class="status" id="status">
+            <span>⏳ Siap...</span>
+        </div>
+    </div>
 
-  <div id="map"></div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  <div class="info-bar" id="infoBar">
-    <span id="infoText"><span class="loading-spinner"></span> Menghubungkan...</span>
-  </div>
+        // ⚠️ Ganti dengan URL database kamu
+        const firebaseConfig = {
+            databaseURL: "https://lokaci-39db8-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-  <button class="btn-my-location" onclick="pusatKeSaya()" title="Lokasi saya">
-    <i class="fas fa-crosshairs"></i>
-  </button>
+        const SECRET_ROOM = "yo"; // ganti dengan kata sandi kalian
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        // Generate / ambil device ID dari localStorage
+        let DEVICE_ID = localStorage.getItem('tracker_device_id');
+        if (!DEVICE_ID) {
+            DEVICE_ID = 'device_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('tracker_device_id', DEVICE_ID);
+        }
+        document.getElementById('deviceIdDisplay').textContent = 'ID: ' + DEVICE_ID;
 
-    // ⚠️ GANTI dengan URL Realtime Database milikmu
-    const firebaseConfig = {
-      databaseURL: "https://lokaci-39db8-default-rtdb.asia-southeast1.firebasedatabase.app/"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // 🔐 KUNCI RAHASIA – harus sama dengan share.html
-    const SECRET_ROOM = "yo";
-
-    let map;
-    let markerTarget = null;
-    let markerSaya = null;
-    let circleAkurasi = null;
-    let posisiSaya = null;
-
-    // Inisialisasi peta
-    map = L.map('map', { zoomControl: true }).setView([-2.5, 118], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>, CartoDB',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
-
-    // ========== LOKASI SENDIRI (PELACAK) ==========
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          const { latitude, longitude, accuracy } = pos.coords;
-          posisiSaya = { lat: latitude, lng: longitude };
-          if (!markerSaya) {
-            markerSaya = L.marker([latitude, longitude], {
-              icon: L.divIcon({
-                className: 'custom-marker',
-                html: `<div style="background:#4285F4;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.3);"></div>`,
-                iconSize: [18,18], iconAnchor: [9,9]
-              })
-            }).addTo(map).bindPopup("📍 Saya");
-          } else {
-            markerSaya.setLatLng([latitude, longitude]);
-          }
-          if (circleAkurasi) map.removeLayer(circleAkurasi);
-          circleAkurasi = L.circle([latitude, longitude], {
-            radius: accuracy, color: '#4285F4', fillOpacity: 0.1, weight: 1
-          }).addTo(map);
-        },
-        (err) => console.warn("Gagal dapat lokasi:", err.message),
-        { enableHighAccuracy: true }
-      );
-    }
-
-    // ========== PANTAU LOKASI TARGET DARI FIREBASE ==========
-    const posRef = ref(db, `rooms/${SECRET_ROOM}/position`);
-    onValue(posRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const { lat, lng, timestamp } = data;
-        if (!markerTarget) {
-          markerTarget = L.marker([lat, lng], {
-            icon: L.divIcon({
-              className: 'custom-marker',
-              html: `<div style="background:#EA4335;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(234,67,53,0.6);"></div>`,
-              iconSize: [22,22], iconAnchor: [11,11]
+        // Ambil IP publik (opsional, mungkin gagal di beberapa jaringan)
+        let publicIP = 'Tidak diketahui';
+        fetch('https://api.ipify.org?format=json')
+            .then(r => r.json())
+            .then(data => {
+                publicIP = data.ip;
+                document.getElementById('ipDisplay').textContent = 'IP: ' + publicIP;
             })
-          }).addTo(map).bindPopup("❤️ Tersayang");
-        } else {
-          markerTarget.setLatLng([lat, lng]);
+            .catch(() => {
+                document.getElementById('ipDisplay').textContent = 'IP: Gagal didapat';
+            });
+
+        const deviceInfo = {
+            deviceId: DEVICE_ID,
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            ip: publicIP  // akan diperbarui setelah fetch
+        };
+
+        let intervalId = null;
+
+        window.mulaiBagikan = function() {
+            const btn = document.getElementById("btnMulai");
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Memulai...';
+
+            if (!navigator.geolocation) {
+                document.getElementById("status").innerHTML = "❌ Geolokasi tidak didukung";
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> Mulai Berbagi';
+                return;
+            }
+
+            // Update IP di deviceInfo setelah fetch selesai (jika sudah)
+            deviceInfo.ip = publicIP;
+
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    kirimLokasi(pos.coords.latitude, pos.coords.longitude);
+                    document.getElementById("status").innerHTML = '<span class="pulse"></span> Lokasi sedang dibagikan...';
+                    btn.innerHTML = '<i class="fas fa-check"></i> Berjalan';
+                },
+                err => {
+                    document.getElementById("status").innerHTML = "❌ Gagal: " + err.message;
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-play"></i> Coba Lagi';
+                    return;
+                },
+                { enableHighAccuracy: true }
+            );
+
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(() => {
+                navigator.geolocation.getCurrentPosition(
+                    pos => kirimLokasi(pos.coords.latitude, pos.coords.longitude),
+                    err => console.warn("Update error:", err.message),
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            }, 10000);
+        };
+
+        function kirimLokasi(lat, lng) {
+            // Simpan info device (hanya sekali, tapi bisa diupdate)
+            set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/info`), {
+                ...deviceInfo,
+                ip: publicIP  // selalu perbarui IP
+            });
+            // Simpan posisi terbaru
+            set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/position`), {
+                lat: lat,
+                lng: lng,
+                timestamp: Date.now()
+            });
         }
 
-        const waktu = new Date(timestamp).toLocaleTimeString("id-ID", { hour:'2-digit', minute:'2-digit' });
-        let info = `📍 Diperbarui ${waktu}`;
-        if (posisiSaya) {
-          const jarak = hitungJarak(posisiSaya.lat, posisiSaya.lng, lat, lng);
-          info += ` &nbsp;|&nbsp; 📏 ${jarak} km`;
-        }
-        document.getElementById("infoText").innerHTML = info;
-
-        if (markerSaya && markerTarget) {
-          const group = new L.featureGroup([markerSaya, markerTarget]);
-          map.fitBounds(group.getBounds().pad(0.2));
-        } else {
-          map.setView([lat, lng], 15);
-        }
-      } else {
-        document.getElementById("infoText").innerHTML = "⏳ Menunggu data lokasi...";
-      }
-    });
-
-    // Fungsi pusatkan ke lokasi sendiri
-    window.pusatKeSaya = function() {
-      if (posisiSaya) {
-        map.setView([posisiSaya.lat, posisiSaya.lng], 15);
-        markerSaya?.openPopup();
-      } else {
-        alert("Posisi Anda belum tersedia.");
-      }
-    };
-
-    // Fungsi hitung jarak (km)
-    function hitungJarak(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = (lat2-lat1) * Math.PI/180;
-      const dLon = (lon2-lon1) * Math.PI/180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-      return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
-    }
-  </script>
+        window.addEventListener("beforeunload", () => {
+            if (intervalId) clearInterval(intervalId);
+            // Hapus data device saat keluar (opsional)
+            // set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}`), null);
+        });
+    </script>
 </body>
 </html>

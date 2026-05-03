@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Lacak Tersayang</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, sans-serif; }
+    #map { height: 100%; width: 100%; }
+
+    /* Info bar bawah */
+    .info-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 50px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 1000;
+      white-space: nowrap;
+    }
+
+    /* Tombol lokasi saya */
+    .btn-my-location {
+      position: absolute;
+      bottom: 90px;
+      right: 20px;
+      background: white;
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #4285F4;
+      z-index: 1000;
+      transition: transform 0.2s;
+    }
+    .btn-my-location:active { transform: scale(0.92); }
+
+    .loading-spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #4285F4;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Info bar -->
+  <div class="info-bar" id="infoBar">
+    <span id="infoText"><span class="loading-spinner"></span> Menghubungkan...</span>
+  </div>
+
+  <!-- Tombol pusatkan ke lokasi sendiri -->
+  <button class="btn-my-location" onclick="pusatKeSaya()" title="Lokasi saya">
+    <i class="fas fa-crosshairs"></i>
+  </button>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // ⚠️ GANTI dengan URL database kamu
+    const firebaseConfig = {
+      databaseURL: "https://lokaci-39db8-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 🔐 KUNCI RAHASIA YANG SAMA – harus sama persis dengan di share.html
+    const SECRET_ROOM = "yo";
+
+    let map;
+    let markerTarget = null;
+    let markerSaya = null;
+    let circleAkurasi = null;
+    let posisiSaya = null;
+
+    // Inisialisasi peta fullscreen
+    map = L.map('map', { zoomControl: true }).setView([-2.5, 118], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>, CartoDB',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // ========== LOKASI SENDIRI ==========
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          posisiSaya = { lat: latitude, lng: longitude };
+          if (!markerSaya) {
+            markerSaya = L.marker([latitude, longitude], {
+              icon: L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background:#4285F4;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [18,18], iconAnchor: [9,9]
+              })
+            }).addTo(map).bindPopup("📍 Saya");
+          } else {
+            markerSaya.setLatLng([latitude, longitude]);
+          }
+          if (circleAkurasi) map.removeLayer(circleAkurasi);
+          circleAkurasi = L.circle([latitude, longitude], { radius: accuracy, color:'#4285F4', fillOpacity:0.1, weight:1 }).addTo(map);
+        },
+        (err) => console.warn("Gagal dapat lokasi:", err.message),
+        { enableHighAccuracy: true }
+      );
+    }
+
+    // ========== PANTAU TARGET ==========
+    const posRef = ref(db, `rooms/${SECRET_ROOM}/position`);
+    onValue(posRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const { lat, lng, timestamp } = data;
+        if (!markerTarget) {
+          markerTarget = L.marker([lat, lng], {
+            icon: L.divIcon({
+              className: 'custom-marker',
+              html: `<div style="background:#EA4335;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(234,67,53,0.6);"></div>`,
+              iconSize: [22,22], iconAnchor: [11,11]
+            })
+          }).addTo(map).bindPopup("❤️ Tersayang");
+        } else {
+          markerTarget.setLatLng([lat, lng]);
+        }
+
+        const waktu = new Date(timestamp).toLocaleTimeString("id-ID", { hour:'2-digit', minute:'2-digit' });
+        let info = `📍 Diperbarui ${waktu}`;
+        if (posisiSaya) {
+          const jarak = hitungJarak(posisiSaya.lat, posisiSaya.lng, lat, lng);
+          info += ` &nbsp;|&nbsp; 📏 ${jarak} km`;
+        }
+        document.getElementById("infoText").innerHTML = info;
+
+        if (markerSaya && markerTarget) {
+          const group = new L.featureGroup([markerSaya, markerTarget]);
+          map.fitBounds(group.getBounds().pad(0.2));
+        } else {
+          map.setView([lat, lng], 15);
+        }
+      } else {
+        document.getElementById("infoText").innerHTML = "⏳ Menunggu data lokasi...";
+      }
+    });
+
+    window.pusatKeSaya = function() {
+      if (posisiSaya) {
+        map.setView([posisiSaya.lat, posisiSaya.lng], 15);
+        markerSaya?.openPopup();
+      } else {
+        alert("Posisi Anda belum tersedia.");
+      }
+    };
+
+    function hitungJarak(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2-lat1)*Math.PI/180;
+      const dLon = (lon2-lon1)*Math.PI/180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+      return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
+    }
+  </script>
+</body>
+</html>

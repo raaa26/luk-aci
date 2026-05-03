@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bagikan Lokasi</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #333;
+    }
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 40px 30px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      color: #764ba2;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #2d2d2d;
+    }
+    .btn {
+      background: #764ba2;
+      color: white;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 24px;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 500;
+      background: #f3f4f6;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .pulse {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      background: #4CAF50;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+      margin-right: 6px;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); }
+      70% { box-shadow: 0 0 0 10px rgba(76,175,80,0); }
+      100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">📍</div>
+    <h1>Berbagi Lokasi</h1>
+    <p style="margin-bottom: 16px; color: #666;">Lokasi akan dikirim setiap 10 detik</p>
+    <button class="btn" id="btnMulai" onclick="mulaiBagikan()">
+      <i class="fas fa-play"></i> Mulai Berbagi
+    </button>
+    <div class="status" id="status">
+      <span>⏳ Menunggu...</span>
+    </div>
+  </div>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // ⚠️ GANTI dengan URL database kamu
+    const firebaseConfig = {
+      databaseURL: "https://lokaci-39db8-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 🔐 KUNCI RAHASIA KALIAN – ganti dengan kata unik
+    const SECRET_ROOM = "yo";
+
+    let intervalId = null;
+
+    window.mulaiBagikan = function() {
+      const btn = document.getElementById("btnMulai");
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Memulai...';
+
+      if (!navigator.geolocation) {
+        document.getElementById("status").innerHTML = "❌ Geolokasi tidak didukung";
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play"></i> Mulai Berbagi';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          kirimLokasi(pos.coords.latitude, pos.coords.longitude);
+          document.getElementById("status").innerHTML = '<span class="pulse"></span> Lokasi sedang dibagikan...';
+          btn.innerHTML = '<i class="fas fa-check"></i> Berjalan';
+        },
+        err => {
+          document.getElementById("status").innerHTML = "❌ Gagal: " + err.message;
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-play"></i> Coba Lagi';
+          return;
+        },
+        { enableHighAccuracy: true }
+      );
+
+      if (intervalId) clearInterval(intervalId);
+      intervalId = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(
+          pos => kirimLokasi(pos.coords.latitude, pos.coords.longitude),
+          err => console.warn("Update error:", err.message),
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      }, 10000);
+    };
+
+    function kirimLokasi(lat, lng) {
+      set(ref(db, `rooms/${SECRET_ROOM}/position`), {
+        lat: lat,
+        lng: lng,
+        timestamp: Date.now()
+      });
+    }
+
+    window.addEventListener("beforeunload", () => {
+      if (intervalId) clearInterval(intervalId);
+    });
+  </script>
+</body>
+</html>

